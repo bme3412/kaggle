@@ -1,9 +1,15 @@
 from keras.models import Sequential
 from keras.layers import GRU, Dense
+from keras.optimizers import Adam
+from keras.callbacks import ReduceLROnPlateau
 
 import pandas as pd
 import numpy as np
 
+lr = 0.0005
+optimizer = Adam(learning_rate=lr)
+reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2,
+                              patience=5, min_lr=0.0001)
 data = pd.read_csv('train_clean.csv')
 
 def train_test_split(data, train_ratio=0.8):
@@ -25,7 +31,7 @@ def create_multivariate_sequences(data, seq_length, feature_columns, target_colu
 
 
 # Example usage:
-feature_columns = ['imbalance_size', 'reference_price', 'bid_price', 'ask_price', 'wap']
+feature_columns = ['imbalance_size', 'imbalance_buy_sell_flag','reference_price', 'bid_price', 'ask_price', 'wap']
 target_column = 'target'
 seq_length = 3
 
@@ -39,15 +45,15 @@ X_train, y_train = create_multivariate_sequences(train, seq_length, feature_colu
 X_test, y_test = create_multivariate_sequences(test, seq_length, feature_columns, target_column)
 
 
-input_shape = (3,5)
+input_shape = (seq_length, len(feature_columns))
 
 model = Sequential()
-model.add(GRU(50, return_sequences=True, input_shape=(input_shape)))
-model.add(GRU(50))
-model.add(Dense(1))
-model.compile(optimizer='adam', loss='mean_squared_error')
+model.add(GRU(50, return_sequences=True, input_shape=input_shape, kernel_initializer='he_normal'))
+model.add(GRU(50,kernel_initializer='he_normal'))
+model.add(Dense(1,kernel_initializer='he_normal'))
+model.compile(optimizer=optimizer, loss='mean_squared_error')
 
-model.fit(X_train, y_train, epochs=10, batch_size=64, validation_data=(X_test, y_test))
+model.fit(X_train, y_train, epochs=10, batch_size=64, validation_data=(X_test, y_test), callbacks=[reduce_lr])
 
 
 # Evaluation
